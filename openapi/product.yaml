@@ -1,0 +1,629 @@
+openapi: 3.1.0
+info:
+  title: Product API
+  version: 0.1.0
+  summary: Canonical HTTP contract for the Microsserv52 Product service.
+  description: |
+    Product owns the catalogue: product identity, display name, price and unit.
+
+    Status codes and payloads are stable. Breaking changes require a major
+    version of this contract and a coordinated platform release.
+  contact:
+    name: Microsserv52
+    url: https://github.com/Microsserv52
+  license:
+    name: Educational project
+    identifier: LicenseRef-Educational
+servers:
+  - url: http://localhost:8080
+    description: Standalone local Compose stack
+  - url: http://product:8080
+    description: Platform Compose network
+tags:
+  - name: Products
+    description: Product catalogue operations.
+security:
+  - bearerAuth: []
+paths:
+  /products:
+    get:
+      operationId: listProducts
+      summary: List every product.
+      description: Public catalogue read. No authentication is required.
+      tags: [Products]
+      security: []
+      responses:
+        "200":
+          description: Product list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+              examples:
+                catalogue:
+                  summary: Two products
+                  value:
+                    - id: 0195abfb-7074-73a9-9d26-b4b9fbaab0a8
+                      name: Tomato
+                      price: 10.12
+                      unit: kg
+                    - id: 0195abfe-e416-7052-be3b-27cdaf12a984
+                      name: Cheese
+                      price: 0.62
+                      unit: slice
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+    post:
+      operationId: createProduct
+      summary: Create a product.
+      description: |
+        Requires `ROLE_ADMIN`. Send an optional `Idempotency-Key` header to make
+        client retries safe. Replaying the same key with the same body returns
+        the original product; reusing a key with a different body returns `409`.
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+            examples:
+              tomato:
+                summary: Create a tomato product
+                value:
+                  name: Tomato
+                  price: 10.12
+                  unit: kg
+      responses:
+        "201":
+          description: Product created or idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+              examples:
+                created:
+                  summary: Created product
+                  value:
+                    id: 0195abfb-7074-73a9-9d26-b4b9fbaab0a8
+                    name: Tomato
+                    price: 10.12
+                    unit: kg
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /products/{id}:
+    get:
+      operationId: getProduct
+      summary: Get a product by identifier.
+      description: Public catalogue read. No authentication is required.
+      tags: [Products]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          description: Product found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+              examples:
+                product:
+                  summary: Tomato
+                  value:
+                    id: 0195abfb-7074-73a9-9d26-b4b9fbaab0a8
+                    name: Tomato
+                    price: 10.12
+                    unit: kg
+                productWithImage:
+                  summary: Tomato with image
+                  value:
+                    id: 0195abfb-7074-73a9-9d26-b4b9fbaab0a8
+                    name: Tomato
+                    price: 10.12
+                    unit: kg
+                    image:
+                      url: /media/media/products/0195abfb-7074-73a9-9d26-b4b9fbaab0a8/0195ac10-5c1f-7c2a-9f3d-9a5b0b0e7a13/original.jpg
+                      alt: Fresh ripe tomatoes
+                      width: 1200
+                      height: 1000
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+    delete:
+      operationId: deleteProduct
+      summary: Delete a product.
+      description: Requires `ROLE_ADMIN`.
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "204":
+          description: Product deleted.
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /products/{id}/image/uploads:
+    post:
+      operationId: createImageUpload
+      summary: Create an image upload ticket.
+      description: |
+        Requires `ROLE_ADMIN`. Returns a short-lived presigned upload URL for a
+        JPEG or PNG image up to 5 MiB and at most 16 million pixels. Upload the
+        bytes with an HTTP `PUT` using the returned `uploadUrl` and
+        `uploadHeaders` (including `If-None-Match: *`), then attach the result
+        with `POST /products/{id}/image`.
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUploadRequest"
+            examples:
+              tomato:
+                summary: Upload a tomato product image
+                value:
+                  fileName: tomato.jpg
+                  contentType: image/jpeg
+                  size: 245678
+                  width: 1200
+                  height: 1000
+      responses:
+        "201":
+          description: Upload ticket created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadResponse"
+              examples:
+                upload:
+                  summary: Presigned upload
+                  value:
+                    uploadId: 0195ac10-5c1f-7c2a-9f3d-9a5b0b0e7a11
+                    uploadUrl: https://bucket.s3.eu-west-1.amazonaws.com/pending/products/0195abfb-7074-73a9-9d26-b4b9fbaab0a8/0195ac10-5c1f-7c2a-9f3d-9a5b0b0e7a13/original.jpg?X-Amz-Signature=example
+                    uploadHeaders:
+                      If-None-Match: "*"
+                    expiresAt: "2026-11-16T12:00:00Z"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /products/{id}/image:
+    post:
+      operationId: attachProductImage
+      summary: Attach an uploaded image to a product.
+      description: |
+        Requires `ROLE_ADMIN`. Validates the bytes staged under the upload
+        ticket, promotes them to the immutable `media/` namespace and replaces
+        any existing image. Returns the full product.
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageAttachRequest"
+            examples:
+              tomato:
+                summary: Attach the tomato upload
+                value:
+                  uploadId: 0195ac10-5c1f-7c2a-9f3d-9a5b0b0e7a11
+                  alt: Fresh ripe tomatoes
+      responses:
+        "200":
+          description: Image attached. Full product representation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+              examples:
+                productWithImage:
+                  summary: Product with attached image
+                  value:
+                    id: 0195abfb-7074-73a9-9d26-b4b9fbaab0a8
+                    name: Tomato
+                    price: 10.12
+                    unit: kg
+                    image:
+                      url: /media/media/products/0195abfb-7074-73a9-9d26-b4b9fbaab0a8/0195ac10-5c1f-7c2a-9f3d-9a5b0b0e7a13/original.jpg
+                      alt: Fresh ripe tomatoes
+                      width: 1200
+                      height: 1000
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ImageConflict"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+    patch:
+      operationId: updateProductImageAlt
+      summary: Update the image alt text.
+      description: Requires `ROLE_ADMIN`. Returns the full product.
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageAltRequest"
+            examples:
+              tomato:
+                summary: Update alt text
+                value:
+                  alt: Ripe tomatoes on the vine
+      responses:
+        "200":
+          description: Alt text updated. Full product representation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+    delete:
+      operationId: deleteProductImage
+      summary: Remove the product image.
+      description: Requires `ROLE_ADMIN`. Deletes the stored object. Returns the full product with `image` set to `null`.
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          description: Image removed. Full product representation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+              examples:
+                productWithoutImage:
+                  summary: Product without an image
+                  value:
+                    id: 0195abfb-7074-73a9-9d26-b4b9fbaab0a8
+                    name: Tomato
+                    price: 10.12
+                    unit: kg
+                    image: null
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: HS256 JWT issued by Auth. Admin operations require `ROLE_ADMIN`.
+  parameters:
+    ProductId:
+      name: id
+      in: path
+      required: true
+      description: Product UUID.
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Client-generated retry key. 1-128 printable characters. The key is
+        scoped to the authenticated deployment, not to an individual user.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: "^[A-Za-z0-9._:-]+$"
+  schemas:
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required: [name, price, unit]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Display name.
+        price:
+          type: number
+          minimum: 0.01
+          maximum: 9999999999.99
+          description: Unit price in USD with at most two decimal places.
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Sale unit, for example `kg`, `slice` or `unit`.
+    Product:
+      type: object
+      additionalProperties: false
+      required: [id, name, price, unit]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        price:
+          type: number
+          minimum: 0.01
+          maximum: 9999999999.99
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 32
+        image:
+          anyOf:
+            - $ref: "#/components/schemas/ProductImage"
+            - type: "null"
+          description: Present when the product has an image. Always serialized (null when absent).
+    ProductImage:
+      type: object
+      additionalProperties: false
+      required: [url, alt, width, height]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          description: Public URL of the stored image. Served read-only from the media origin.
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Alternative text describing the image.
+        width:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        height:
+          type: integer
+          minimum: 1
+          maximum: 4096
+    ImageUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [fileName, contentType, size, width, height]
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png]
+        size:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+          description: Declared size in bytes. Maximum 5 MiB.
+        width:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        height:
+          type: integer
+          minimum: 1
+          maximum: 4096
+    ImageUploadResponse:
+      type: object
+      additionalProperties: false
+      required: [uploadId, uploadUrl, uploadHeaders, expiresAt]
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          minLength: 1
+        uploadHeaders:
+          type: object
+          additionalProperties:
+            type: string
+          description: Headers that must be sent with the upload PUT (always includes If-None-Match).
+        expiresAt:
+          type: string
+          format: date-time
+    ImageAttachRequest:
+      type: object
+      additionalProperties: false
+      required: [uploadId, alt]
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 200
+    ImageAltRequest:
+      type: object
+      additionalProperties: false
+      required: [alt]
+      properties:
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 200
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z][A-Z0-9_]*$"
+          description: Stable machine-readable error code.
+        message:
+          type: string
+          minLength: 1
+          description: Safe human-readable message. Never contains secrets.
+        details:
+          type: array
+          description: Field-level validation details when applicable.
+          items:
+            $ref: "#/components/schemas/FieldError"
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+  responses:
+    InvalidRequest:
+      description: Invalid payload, identifier or header value.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            validation:
+              summary: Validation failure
+              value:
+                code: VALIDATION_ERROR
+                message: Request validation failed
+                details:
+                  - field: price
+                    message: must be greater than or equal to 0.01
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            unauthorized:
+              value:
+                code: UNAUTHORIZED
+                message: Authentication is required
+    Forbidden:
+      description: Authenticated caller lacks ROLE_ADMIN.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            forbidden:
+              value:
+                code: FORBIDDEN
+                message: Access is denied
+    NotFound:
+      description: Product does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            notFound:
+              value:
+                code: PRODUCT_NOT_FOUND
+                message: Product not found
+    IdempotencyConflict:
+      description: Idempotency key was reused with a different request body.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            conflict:
+              value:
+                code: IDEMPOTENCY_KEY_REUSED
+                message: Idempotency-Key was already used with a different request
+    ImageConflict:
+      description: A validated image object already exists for this upload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            conflict:
+              value:
+                code: IMAGE_ALREADY_EXISTS
+                message: a validated image already exists for this upload
+    PayloadTooLarge:
+      description: Request body exceeds the configured limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            tooLarge:
+              value:
+                code: PAYLOAD_TOO_LARGE
+                message: Request body is too large
+    DependencyUnavailable:
+      description: Required dependency such as PostgreSQL is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            unavailable:
+              value:
+                code: DEPENDENCY_UNAVAILABLE
+                message: A required dependency is unavailable

@@ -1,0 +1,10 @@
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed",
+  "details": [
+    {
+      "field": "price",
+      "message": "must be greater than or equal to 0.01"
+    }
+  ]
+}

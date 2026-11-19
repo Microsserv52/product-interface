@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microsserv52.github.io/product-interface/schemas/product-list.schema.json",
+  "title": "ProductList",
+  "type": "array",
+  "items": { "$ref": "product.schema.json" }
+}

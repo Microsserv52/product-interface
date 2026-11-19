@@ -1,0 +1,12 @@
+{
+  "id": "0195abfb-7074-73a9-9d26-b4b9fbaab0a8",
+  "name": "Tomato",
+  "price": 10.12,
+  "unit": "kg",
+  "image": {
+    "url": "/media/media/products/0195abfb-7074-73a9-9d26-b4b9fbaab0a8/0195ac10-5c1f-7c2a-9f3d-9a5b0b0e7a13/original.jpg",
+    "alt": "Fresh ripe tomatoes",
+    "width": 1200,
+    "height": 1000
+  }
+}

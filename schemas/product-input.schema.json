@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microsserv52.github.io/product-interface/schemas/product-input.schema.json",
+  "title": "ProductInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "price", "unit"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "price": {
+      "type": "number",
+      "minimum": 0.01,
+      "maximum": 9999999999.99
+    },
+    "unit": { "type": "string", "minLength": 1, "maxLength": 32 }
+  }
+}

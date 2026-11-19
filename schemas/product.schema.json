@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microsserv52.github.io/product-interface/schemas/product.schema.json",
+  "title": "Product",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "price", "unit"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "price": {
+      "type": "number",
+      "minimum": 0.01,
+      "maximum": 9999999999.99
+    },
+    "unit": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "image": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/productImage" }
+      ]
+    }
+  },
+  "$defs": {
+    "productImage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "alt", "width", "height"],
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "alt": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "width": { "type": "integer", "minimum": 1, "maximum": 4096 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 4096 }
+      }
+    }
+  }
+}
