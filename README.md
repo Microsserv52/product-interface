@@ -1,5 +1,7 @@
 # Product interface
 
+![Tech Stack](https://skillicons.dev/icons?i=java,docker,githubactions)
+
 Canonical HTTP contract for the [Microsserv52 Product service](https://github.com/Microsserv52/product).
 The contract is published independently so Order, frontend clients and contract
 tests can consume the exact version without cloning the service or the
